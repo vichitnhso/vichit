@@ -1838,7 +1838,120 @@
 ===================================================== */
 
 const API_URL =
-  'https://script.google.com/macros/s/AKfycbze8__1iXQPhVRqItCfadoyQunvzOwZ4vjs_GBAETy8/dev';
+  'https://script.google.com/macros/s/AKfycbxk-PnOg4F_oesd7jFKrSsVCEJDbD6gmi8bPZKuRzYCRI9Y5muEVSQWf8NLLYpe2ILNbA/exec';
+
+
+/* =====================================================
+   JSONP LOADER
+===================================================== */
+
+function loadJsonp(action) {
+
+  return new Promise(function(resolve, reject) {
+
+    const callbackName =
+      'jsonpCallback_' +
+      Date.now() +
+      '_' +
+      Math.floor(
+        Math.random() * 100000
+      );
+
+
+    const script =
+      document.createElement('script');
+
+
+    const timeout =
+      setTimeout(function() {
+
+        cleanup();
+
+        reject(
+          new Error(
+            'API timeout: ' +
+            action
+          )
+        );
+
+      }, 15000);
+
+
+    function cleanup() {
+
+      clearTimeout(timeout);
+
+
+      if (
+        script.parentNode
+      ) {
+
+        script.parentNode.removeChild(
+          script
+        );
+
+      }
+
+
+      try {
+
+        delete window[
+          callbackName
+        ];
+
+      }
+      catch (error) {
+
+        window[
+          callbackName
+        ] = undefined;
+
+      }
+
+    }
+
+
+    window[
+      callbackName
+    ] = function(data) {
+
+      cleanup();
+
+      resolve(data);
+
+    };
+
+
+    script.onerror =
+      function() {
+
+        cleanup();
+
+        reject(
+          new Error(
+            'โหลด API ไม่สำเร็จ: ' +
+            action
+          )
+        );
+
+      };
+
+
+    script.src =
+      API_URL +
+      '?action=' +
+      encodeURIComponent(action) +
+      '&callback=' +
+      encodeURIComponent(callbackName);
+
+
+    document.body.appendChild(
+      script
+    );
+
+  });
+
+}
 
 
 /* =====================================================
@@ -1854,28 +1967,14 @@ async function loadAllPages() {
     );
 
 
-    /*
-     * โหลดข้อมูลหน้าเว็บ
-     */
-
-    const pagesResponse =
-      await fetch(
-        API_URL +
-        '?action=pages'
-      );
-
-
-    if (!pagesResponse.ok) {
-
-      throw new Error(
-        'โหลดข้อมูล Pages ไม่สำเร็จ'
-      );
-
-    }
-
+    /* =================================================
+       LOAD PAGE DATA
+    ================================================= */
 
     const allPages =
-      await pagesResponse.json();
+      await loadJsonp(
+        'pages'
+      );
 
 
     console.log(
@@ -1884,40 +1983,30 @@ async function loadAllPages() {
     );
 
 
-    /*
-     * เก็บข้อมูลแต่ละหน้า
-     */
+    pages.forEach(
+      function(pageName) {
 
-    pages.forEach(function(pageName) {
+        pageData[pageName] =
+          allPages[pageName] || [];
 
-      pageData[pageName] =
-        allPages[pageName] || [];
-
-    });
+      }
+    );
 
 
-    /*
-     * โหลด Projects
-     */
+    /* =================================================
+       LOAD PROJECT DATA
+    ================================================= */
 
-    const projectsResponse =
-      await fetch(
-        API_URL +
-        '?action=projects'
+    const projects =
+      await loadJsonp(
+        'projects'
       );
-
-
-    if (!projectsResponse.ok) {
-
-      throw new Error(
-        'โหลด Projects ไม่สำเร็จ'
-      );
-
-    }
 
 
     projectsData =
-      await projectsResponse.json();
+      Array.isArray(projects)
+        ? projects
+        : [];
 
 
     console.log(
@@ -1926,14 +2015,15 @@ async function loadAllPages() {
     );
 
 
-    /*
-     * เริ่มต้นเว็บไซต์
-     */
+    /* =================================================
+       START WEBSITE
+    ================================================= */
 
     initApp();
 
-
   }
+
+
   catch (error) {
 
     console.error(
@@ -1942,15 +2032,17 @@ async function loadAllPages() {
     );
 
 
-    /*
-     * ป้องกันเว็บค้างหน้า Loading
-     */
+    /* =================================================
+       PREVENT LOADING SCREEN FROM GETTING STUCK
+    ================================================= */
 
-    pages.forEach(function(pageName) {
+    pages.forEach(
+      function(pageName) {
 
-      pageData[pageName] = [];
+        pageData[pageName] = [];
 
-    });
+      }
+    );
 
 
     projectsData = [];
@@ -1961,7 +2053,6 @@ async function loadAllPages() {
   }
 
 }
-
     /* =====================================================
        INIT
     ===================================================== */
