@@ -1986,13 +1986,80 @@ function loadJsonp(action) {
    LOAD ALL PAGES
 ===================================================== */
 
+
 async function loadAllPages() {
-
   try {
+    console.log('กำลังโหลดข้อมูลจาก API...');
 
-    console.log(
-      'กำลังโหลดข้อมูลจาก API...'
-    );
+    // โหลดข้อมูลทุกหน้า
+    const allPages = await loadJsonp('pages');
+
+    console.log('โหลด Pages สำเร็จ:', allPages);
+
+    if (!allPages || allPages.success === false) {
+      throw new Error(
+        allPages && allPages.message
+          ? allPages.message
+          : 'ไม่สามารถโหลดข้อมูลหน้าเว็บได้'
+      );
+    }
+
+    pages.forEach(function(pageName) {
+      const key = Object.keys(allPages).find(function(name) {
+        return name.trim().toLowerCase() === pageName.toLowerCase();
+      });
+
+      pageData[pageName] =
+        key && Array.isArray(allPages[key])
+          ? allPages[key]
+          : [];
+    });
+
+    console.log('ข้อมูล LTC:', pageData.ltc);
+
+    // โหลดข้อมูลโครงการและแกลเลอรี
+    const projectsResponse = await loadJsonp('projects');
+
+    if (
+      projectsResponse &&
+      projectsResponse.success === false
+    ) {
+      throw new Error(
+        projectsResponse.message || 'โหลด Projects ไม่สำเร็จ'
+      );
+    }
+
+    projectsData = Array.isArray(projectsResponse)
+      ? projectsResponse
+      : (
+          projectsResponse &&
+          Array.isArray(projectsResponse.projects)
+            ? projectsResponse.projects
+            : []
+        );
+
+    console.log('โหลด Projects สำเร็จ:', projectsData);
+
+    // แสดงหน้าเว็บด้วยฟังก์ชันเดิม
+    initApp();
+
+  } catch (error) {
+    console.error('โหลดข้อมูลจาก API ไม่สำเร็จ:', error);
+
+    // ไม่ปล่อยให้หน้าเว็บค้างอยู่ที่หน้าจอโหลด
+    pages.forEach(function(pageName) {
+      if (!Array.isArray(pageData[pageName])) {
+        pageData[pageName] = [];
+      }
+    });
+
+    if (!Array.isArray(projectsData)) {
+      projectsData = [];
+    }
+
+    initApp();
+  }
+}
 
 
     /* =================================================
