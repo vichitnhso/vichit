@@ -2152,67 +2152,36 @@ async function loadAllPages() {
        INIT
     ===================================================== */
 
-    function initApp() {
+  /* =====================================================
+   INIT
+===================================================== */
 
-/* โหลดข้อมูลแต่ละหน้า โดยรองรับรูปแบบ API หลายแบบ */
-const responseData =
-  allPages && typeof allPages === 'object'
-    ? (allPages.data || allPages.pages || allPages)
-    : {};
+function initApp() {
+  // ข้อมูลถูกโหลดและเก็บใน pageData แล้วโดย loadAllPages()
 
-pages.forEach(function(pageName) {
-  // ค้นหาชื่อหน้าโดยไม่สนตัวพิมพ์เล็ก/ใหญ่
-  const matchedKey = Object.keys(responseData).find(function(key) {
-    return String(key).trim().toLowerCase() ===
-      pageName.toLowerCase();
+  console.log('ข้อมูล Home:', pageData.home);
+  console.log('ข้อมูล LTC:', pageData.ltc);
+  console.log('จำนวนโครงการ:', projectsData.length);
+
+  // แสดงข้อมูลทุกหน้า
+  pages.forEach(function(pageName) {
+    renderPage(pageName);
   });
 
-  const rows = matchedKey
-    ? responseData[matchedKey]
-    : [];
+  // เปิดหน้าแรก
+  switchPage('home');
 
-  pageData[pageName] = Array.isArray(rows) ? rows : [];
-});
+  // ซ่อนหน้าจอกำลังโหลด
+  document.body.classList.add('loaded');
 
-console.log('ข้อมูลหน้า Home:', pageData.home);
-console.log('ข้อมูลหน้า LTC:', pageData.ltc);
-console.log('จำนวนรายการ LTC:', pageData.ltc.length);
+  const loading = document.getElementById('loading-screen');
 
-
-
-      switchPage('home');
-
-
-      document.body.classList.add(
-        'loaded'
-      );
-
-
-      setTimeout(function() {
-
-        const loading =
-          document.getElementById(
-            'loading-screen'
-          );
-
-        if (loading) {
-
-          loading.classList.add(
-            'hide'
-          );
-
-        }
-
-      }, 300);
-
-
-      console.log(
-        'จำนวนโครงการ:',
-        projectsData.length
-      );
-
-    }
-
+  if (loading) {
+    setTimeout(function() {
+      loading.classList.add('hide');
+    }, 300);
+  }
+}
 
     /* =====================================================
        GET PAGE CONTAINER
