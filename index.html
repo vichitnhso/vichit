@@ -1527,14 +1527,15 @@
        LOADING SCREEN
   ====================================================== -->
 
- 
-<div id="loading-screen">
-  <div class="loading-spinner"></div>
-  <div class="loading-text">
-    กำลังโหลดข้อมูล...
-  </div>
-</div>
+  <div id="loading-screen">
 
+    <div class="loading-spinner"></div>
+
+    <div class="loading-text">
+      กำลังโหลดข้อมูล...
+    </div>
+
+  </div>
 
 
   <!-- =====================================================
@@ -1986,80 +1987,13 @@ function loadJsonp(action) {
    LOAD ALL PAGES
 ===================================================== */
 
-
 async function loadAllPages() {
+
   try {
-    console.log('กำลังโหลดข้อมูลจาก API...');
 
-    // โหลดข้อมูลทุกหน้า
-    const allPages = await loadJsonp('pages');
-
-    console.log('โหลด Pages สำเร็จ:', allPages);
-
-    if (!allPages || allPages.success === false) {
-      throw new Error(
-        allPages && allPages.message
-          ? allPages.message
-          : 'ไม่สามารถโหลดข้อมูลหน้าเว็บได้'
-      );
-    }
-
-    pages.forEach(function(pageName) {
-      const key = Object.keys(allPages).find(function(name) {
-        return name.trim().toLowerCase() === pageName.toLowerCase();
-      });
-
-      pageData[pageName] =
-        key && Array.isArray(allPages[key])
-          ? allPages[key]
-          : [];
-    });
-
-    console.log('ข้อมูล LTC:', pageData.ltc);
-
-    // โหลดข้อมูลโครงการและแกลเลอรี
-    const projectsResponse = await loadJsonp('projects');
-
-    if (
-      projectsResponse &&
-      projectsResponse.success === false
-    ) {
-      throw new Error(
-        projectsResponse.message || 'โหลด Projects ไม่สำเร็จ'
-      );
-    }
-
-    projectsData = Array.isArray(projectsResponse)
-      ? projectsResponse
-      : (
-          projectsResponse &&
-          Array.isArray(projectsResponse.projects)
-            ? projectsResponse.projects
-            : []
-        );
-
-    console.log('โหลด Projects สำเร็จ:', projectsData);
-
-    // แสดงหน้าเว็บด้วยฟังก์ชันเดิม
-    initApp();
-
-  } catch (error) {
-    console.error('โหลดข้อมูลจาก API ไม่สำเร็จ:', error);
-
-    // ไม่ปล่อยให้หน้าเว็บค้างอยู่ที่หน้าจอโหลด
-    pages.forEach(function(pageName) {
-      if (!Array.isArray(pageData[pageName])) {
-        pageData[pageName] = [];
-      }
-    });
-
-    if (!Array.isArray(projectsData)) {
-      projectsData = [];
-    }
-
-    initApp();
-  }
-}
+    console.log(
+      'กำลังโหลดข้อมูลจาก API...'
+    );
 
 
     /* =================================================
@@ -2078,30 +2012,37 @@ async function loadAllPages() {
     );
 
 
-    pages.forEach(
-      function(pageName) {
+    pages.forEach(function(pageName) {
+      const matchedKey = Object.keys(allPages || {}).find(function(key) {
+        return String(key).trim().toLowerCase() === pageName.toLowerCase();
+      });
 
-        pageData[pageName] =
-          allPages[pageName] || [];
-
-      }
-    );
+      pageData[pageName] = matchedKey && Array.isArray(allPages[matchedKey])
+        ? allPages[matchedKey]
+        : [];
+    });
 
 
     /* =================================================
        LOAD PROJECT DATA
     ================================================= */
 
-    const projects =
+    const projectsResponse =
       await loadJsonp(
         'projects'
       );
 
 
+    // API ของ Projects ส่งกลับเป็น { success: true, projects: [...] }
     projectsData =
-      Array.isArray(projects)
-        ? projects
-        : [];
+      Array.isArray(projectsResponse)
+        ? projectsResponse
+        : (
+            projectsResponse &&
+            Array.isArray(projectsResponse.projects)
+              ? projectsResponse.projects
+              : []
+          );
 
 
     console.log(
@@ -2152,36 +2093,26 @@ async function loadAllPages() {
        INIT
     ===================================================== */
 
-  /* =====================================================
-   INIT
-===================================================== */
+    function initApp() {
+      // ข้อมูลถูกโหลดและจัดเก็บใน pageData และ projectsData แล้ว
+      console.log('ข้อมูล Home:', pageData.home || []);
+      console.log('ข้อมูล LTC:', pageData.ltc || []);
+      console.log('จำนวนโครงการ:', projectsData.length);
 
-function initApp() {
-  // ข้อมูลถูกโหลดและเก็บใน pageData แล้วโดย loadAllPages()
+      pages.forEach(function(pageName) {
+        renderPage(pageName);
+      });
 
-  console.log('ข้อมูล Home:', pageData.home);
-  console.log('ข้อมูล LTC:', pageData.ltc);
-  console.log('จำนวนโครงการ:', projectsData.length);
+      switchPage('home');
+      document.body.classList.add('loaded');
 
-  // แสดงข้อมูลทุกหน้า
-  pages.forEach(function(pageName) {
-    renderPage(pageName);
-  });
-
-  // เปิดหน้าแรก
-  switchPage('home');
-
-  // ซ่อนหน้าจอกำลังโหลด
-  document.body.classList.add('loaded');
-
-  const loading = document.getElementById('loading-screen');
-
-  if (loading) {
-    setTimeout(function() {
-      loading.classList.add('hide');
-    }, 300);
-  }
-}
+      const loading = document.getElementById('loading-screen');
+      if (loading) {
+        setTimeout(function() {
+          loading.classList.add('hide');
+        }, 300);
+      }
+    }
 
     /* =====================================================
        GET PAGE CONTAINER
