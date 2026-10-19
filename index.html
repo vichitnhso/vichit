@@ -1527,15 +1527,15 @@
        LOADING SCREEN
   ====================================================== -->
 
-  < id="loading-screen">
+  <div id="loading-screen">
 
-    < class="loading-spinner"></>
+    <div class="loading-spinner"></div>
 
-    < class="loading-text">
+    <div class="loading-text">
       กำลังโหลดข้อมูล...
-    </>
+    </div>
 
-  </>
+  </div>
 
 
   <!-- =====================================================
@@ -1984,104 +1984,144 @@ function loadJsonp(action) {
 
 
 /* =====================================================
+   NORMALIZE API RESPONSE
+   รองรับทั้งรูปแบบ { pages: {...} }, { data: {...} }
+   และรูปแบบ object ที่ส่งข้อมูลหน้าเว็บมาโดยตรง
+===================================================== */
+
+function getPagePayload(response) {
+  if (!response || typeof response !== 'object') return {};
+
+  // รูปแบบที่ API อาจห่อข้อมูลไว้
+  const candidates = [
+    response.pages,
+    response.data,
+    response.result,
+    response.content,
+    response
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+      // ยอมรับ candidate เมื่อมีอย่างน้อยหนึ่ง key ที่รู้จัก
+      if ([
+        'home', 'ltc', 'LTC', 'vichit-power', 'vichitPower',
+        'vichit_power', 'about', 'contact'
+      ].some(key => Object.prototype.hasOwnProperty.call(candidate, key))) {
+        return candidate;
+      }
+    }
+  }
+
+  return {};
+}
+
+function getRows(value) {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== 'object') return [];
+  if (Array.isArray(value.items)) return value.items;
+  if (Array.isArray(value.rows)) return value.rows;
+  if (Array.isArray(value.data)) return value.data;
+  if (Array.isArray(value.records)) return value.records;
+  return [];
+}
+
+function getPageRows(allPages, pageName) {
+  if (!allPages || typeof allPages !== 'object') return [];
+
+  const aliases = {
+    'home': ['home', 'Home', 'HOME'],
+    'ltc': ['ltc', 'LTC', 'Ltc', 'longTermCare', 'long_term_care'],
+    'vichit-power': ['vichit-power', 'vichitPower', 'vichit_power', 'Vichit Power', 'VichitPower'],
+    'about': ['about', 'About', 'ABOUT'],
+    'contact': ['contact', 'Contact', 'CONTACT']
+  };
+
+  const source = getPagePayload(allPages);
+  for (const key of (aliases[pageName] || [pageName])) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      return getRows(source[key]);
+    }
+  }
+  return [];
+}
+
+/* =====================================================
    LOAD ALL PAGES
 ===================================================== */
 
 async function loadAllPages() {
+  console.log('กำลังโหลดข้อมูลจาก API...');
 
   try {
+    const allPages = await loadJsonp('pages');
+    console.log('โหลด Pages สำเร็จ:', allPages);
 
-    console.log(
-      'กำลังโหลดข้อมูลจาก API...'
-    );
+    pages.forEach(function(pageName) {
+      pageData[pageName] = getPageRows(allPages, pageName);
+    });
 
-
-    /* =================================================
-       LOAD PAGE DATA
-    ================================================= */
-
-    const allPages =
-      await loadJsonp(
-        'pages'
-      );
-
-
-    console.log(
-      'โหลด Pages สำเร็จ:',
-      allPages
-    );
-
-
-    pages.forEach(
-      function(pageName) {
-
-        pageData[pageName] =
-          allPages[pageName] || [];
-
+    // หาก endpoint pages ไม่ได้ส่งข้อมูล LTC มา ให้ลอง action=ltc โดยตรง
+    if (!pageData.ltc || pageData.ltc.length === 0) {
+      try {
+        const ltcResponse = await loadJsonp('ltc');
+        const ltcRows = getRows(ltcResponse) .length
+          ? getRows(ltcResponse)
+          : getPageRows(ltcResponse, 'ltc');
+        if (ltcRows.length) {
+          pageData.ltc = ltcRows;
+          console.log('โหลด LTC จาก action=ltc สำเร็จ:', ltcRows);
+        } else {
+          console.warn('API ตอบกลับแล้ว แต่ไม่พบรายการ LTC ในรูปแบบที่รองรับ:', ltcResponse);
+        }
+      } catch (ltcError) {
+        console.warn('โหลด LTC แยกไม่สำเร็จ; จะใช้ข้อมูลจาก action=pages ถ้ามี:', ltcError);
       }
-    );
+    }
 
+    try {
+      const projectsResponse = await loadJsonp('projects');
+      const projectRows = projectsResponse && getRows(projectsResponse.projects);
+      projectsData = projectRows && projectRows.length
+        ? projectRows
+        : (Array.isArray(projectsResponse) ? projectsResponse : getRows(projectsResponse));
+      console.log('โหลด Projects สำเร็จ:', projectsData);
+    } catch (projectError) {
+      projectsData = [];
+      console.error('โหลด Projects ไม่สำเร็จ:', projectError);
+    }
 
-    /* =================================================
-       LOAD PROJECT DATA
-    ================================================= */
+  } catch (error) {
+    console.error('โหลดข้อมูลหน้าเว็บจาก API ไม่สำเร็จ:', error);
+    pages.forEach(function(pageName) {
+      if (!Array.isArray(pageData[pageName])) pageData[pageName] = [];
+    });
 
-    const projects =
-      await loadJsonp(
-        'projects'
-      );
+    // ลองโหลด LTC โดยตรง แม้ action=pages จะล้มเหลว
+    try {
+      const ltcResponse = await loadJsonp('ltc');
+      const ltcRows = Array.isArray(ltcResponse)
+        ? ltcResponse
+        : (getRows(ltcResponse).length ? getRows(ltcResponse) : getPageRows(ltcResponse, 'ltc'));
+      if (ltcRows.length) pageData.ltc = ltcRows;
+    } catch (ltcError) {
+      console.error('โหลด LTC ไม่สำเร็จ:', ltcError);
+    }
 
-
-    projectsData =
-      Array.isArray(projects)
-        ? projects
-        : [];
-
-
-    console.log(
-      'โหลด Projects สำเร็จ:',
-      projectsData
-    );
-
-
-    /* =================================================
-       START WEBSITE
-    ================================================= */
-
-    initApp();
-
+    try {
+      const projectsResponse = await loadJsonp('projects');
+      const projectRows = projectsResponse && getRows(projectsResponse.projects);
+      projectsData = Array.isArray(projectsResponse)
+        ? projectsResponse
+        : (projectRows && projectRows.length ? projectRows : getRows(projectsResponse));
+    } catch (projectError) {
+      projectsData = [];
+    }
   }
 
-
-  catch (error) {
-
-    console.error(
-      'โหลดข้อมูลจาก API ไม่สำเร็จ:',
-      error
-    );
-
-
-    /* =================================================
-       PREVENT LOADING SCREEN FROM GETTING STUCK
-    ================================================= */
-
-    pages.forEach(
-      function(pageName) {
-
-        pageData[pageName] = [];
-
-      }
-    );
-
-
-    projectsData = [];
-
-
-    initApp();
-
-  }
-
+  initApp();
 }
+
     /* =====================================================
        INIT
     ===================================================== */
