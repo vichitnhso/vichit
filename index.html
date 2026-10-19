@@ -854,7 +854,6 @@
     }
 
     .project-detail-cover {
-      cursor: zoom-in;
       width: 100%;
       max-height: 600px;
       object-fit: cover;
@@ -976,10 +975,6 @@
         transform 0.25s ease,
         box-shadow 0.25s ease;
       background: #e2e8f0;
-    }
-
-    .project-gallery-item {
-      cursor: zoom-in;
     }
 
     .project-gallery-item:hover {
@@ -1532,15 +1527,15 @@
        LOADING SCREEN
   ====================================================== -->
 
-  <div id="loading-screen">
+  < id="loading-screen">
 
-    <div class="loading-spinner"></div>
+    < class="loading-spinner"></>
 
-    <div class="loading-text">
+    < class="loading-text">
       กำลังโหลดข้อมูล...
-    </div>
+    </>
 
-  </div>
+  </>
 
 
   <!-- =====================================================
@@ -1872,7 +1867,7 @@
 ===================================================== */
 
 const API_URL =
-  'https://script.google.com/macros/s/AKfycbyE7k3WuuQPBUlhd228G5P0HVk7Fs5dfW9xLSNUplTRKFTjcyFSiiMziLbqcS2nzPzi/exec';
+  'https://script.google.com/macros/s/AKfycbxk-PnOg4F_oesd7jFKrSsVCEJDbD6gmi8bPZKuRzYCRI9Y5muEVSQWf8NLLYpe2ILNbA/exec';
 
 
 /* =====================================================
@@ -2017,37 +2012,30 @@ async function loadAllPages() {
     );
 
 
-    pages.forEach(function(pageName) {
-      const matchedKey = Object.keys(allPages || {}).find(function(key) {
-        return String(key).trim().toLowerCase() === pageName.toLowerCase();
-      });
+    pages.forEach(
+      function(pageName) {
 
-      pageData[pageName] = matchedKey && Array.isArray(allPages[matchedKey])
-        ? allPages[matchedKey]
-        : [];
-    });
+        pageData[pageName] =
+          allPages[pageName] || [];
+
+      }
+    );
 
 
     /* =================================================
        LOAD PROJECT DATA
     ================================================= */
 
-    const projectsResponse =
+    const projects =
       await loadJsonp(
         'projects'
       );
 
 
-    // API ของ Projects ส่งกลับเป็น { success: true, projects: [...] }
     projectsData =
-      Array.isArray(projectsResponse)
-        ? projectsResponse
-        : (
-            projectsResponse &&
-            Array.isArray(projectsResponse.projects)
-              ? projectsResponse.projects
-              : []
-          );
+      Array.isArray(projects)
+        ? projects
+        : [];
 
 
     console.log(
@@ -2099,25 +2087,47 @@ async function loadAllPages() {
     ===================================================== */
 
     function initApp() {
-      // ข้อมูลถูกโหลดและจัดเก็บใน pageData และ projectsData แล้ว
-      console.log('ข้อมูล Home:', pageData.home || []);
-      console.log('ข้อมูล LTC:', pageData.ltc || []);
-      console.log('จำนวนโครงการ:', projectsData.length);
 
       pages.forEach(function(pageName) {
+
         renderPage(pageName);
+
       });
 
-      switchPage('home');
-      document.body.classList.add('loaded');
 
-      const loading = document.getElementById('loading-screen');
-      if (loading) {
-        setTimeout(function() {
-          loading.classList.add('hide');
-        }, 300);
-      }
+      switchPage('home');
+
+
+      document.body.classList.add(
+        'loaded'
+      );
+
+
+      setTimeout(function() {
+
+        const loading =
+          document.getElementById(
+            'loading-screen'
+          );
+
+        if (loading) {
+
+          loading.classList.add(
+            'hide'
+          );
+
+        }
+
+      }, 300);
+
+
+      console.log(
+        'จำนวนโครงการ:',
+        projectsData.length
+      );
+
     }
+
 
     /* =====================================================
        GET PAGE CONTAINER
@@ -3484,13 +3494,9 @@ async function loadAllPages() {
         html += `
 
           <img
-            class="project-detail-cover lightbox-clickable"
+            class="project-detail-cover"
             src="${escapeAttribute(cover)}"
             alt="${escapeAttribute(titleText)}"
-            onclick="openLightbox(0)"
-            role="button"
-            tabindex="0"
-            title="คลิกเพื่อดูภาพขนาดใหญ่"
           >
 
         `;
@@ -3591,12 +3597,11 @@ async function loadAllPages() {
             html += `
 
               <img
-                class="project-gallery-item lightbox-clickable"
+                class="project-gallery-item"
                 src="${escapeAttribute(image)}"
                 alt="ภาพกิจกรรม ${index + 1}"
                 loading="lazy"
-                onclick="openLightbox(${index + (cover ? 1 : 0)})"
-                title="คลิกเพื่อดูภาพขนาดใหญ่"
+                onclick="openLightbox(${index})"
               >
 
             `;
@@ -4009,26 +4014,22 @@ async function loadAllPages() {
       }
 
 
-      // รวมภาพหน้าปกและภาพในแกลเลอรี เพื่อให้คลิกได้ทั้งสองตำแหน่ง
-      const coverImage =
-        projectPage.querySelector('.project-detail-cover');
-
-      const galleryImages =
+      const images =
         Array.from(
-          projectPage.querySelectorAll('.project-gallery-item')
-        );
+          projectPage.querySelectorAll(
+            '.project-gallery-item'
+          )
+        )
+        .map(function(img) {
 
-      const images = [];
+          return img.src;
 
-      if (coverImage && coverImage.src) {
-        images.push(coverImage.src);
-      }
+        })
+        .filter(function(url) {
 
-      galleryImages.forEach(function(img) {
-        if (img.src) {
-          images.push(img.src);
-        }
-      });
+          return url !== '';
+
+        });
 
 
       if (!images.length) {
@@ -4077,24 +4078,6 @@ async function loadAllPages() {
         'hidden';
 
     }
-
-
-    // รองรับการเปิดภาพด้วย Enter/Space เมื่อโฟกัสรูปด้วยแป้นพิมพ์
-    document.addEventListener('keydown', function(event) {
-      if ((event.key === 'Enter' || event.key === ' ') &&
-          event.target &&
-          event.target.classList &&
-          event.target.classList.contains('lightbox-clickable')) {
-        event.preventDefault();
-        const images = Array.from(document.querySelectorAll('#project-detail-page .project-gallery-item'));
-        const cover = document.querySelector('#project-detail-page .project-detail-cover');
-        let index = 0;
-        if (event.target !== cover) {
-          index = images.indexOf(event.target) + (cover ? 1 : 0);
-        }
-        openLightbox(index);
-      }
-    });
 
 
     /* =====================================================
