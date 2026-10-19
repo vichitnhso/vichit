@@ -1527,15 +1527,17 @@
        LOADING SCREEN
   ====================================================== -->
 
-  < id="loading-screen">
 
-    < class="loading-spinner"></>
+<div id="loading-screen">
 
-    < class="loading-text">
-      กำลังโหลดข้อมูล...
-    </>
+  <div class="loading-spinner"></div>
 
-  </>
+  <div class="loading-text">
+    กำลังโหลดข้อมูล...
+  </div>
+
+</div>
+
 
 
   <!-- =====================================================
@@ -2093,9 +2095,8 @@ async function loadAllPages() {
         renderPage(pageName);
 
       });
-
-
-      switchPage('home');
+console.log('จำนวนข้อมูล LTC:', pageData.ltc.length);
+console.log('ข้อมูล LTC:', pageData.ltc);
 
 
       document.body.classList.add(
