@@ -2087,11 +2087,30 @@ async function loadAllPages() {
 
     function initApp() {
 
-      pages.forEach(function(pageName) {
+/* โหลดข้อมูลแต่ละหน้า โดยรองรับรูปแบบ API หลายแบบ */
+const responseData =
+  allPages && typeof allPages === 'object'
+    ? (allPages.data || allPages.pages || allPages)
+    : {};
 
-        renderPage(pageName);
+pages.forEach(function(pageName) {
+  // ค้นหาชื่อหน้าโดยไม่สนตัวพิมพ์เล็ก/ใหญ่
+  const matchedKey = Object.keys(responseData).find(function(key) {
+    return String(key).trim().toLowerCase() ===
+      pageName.toLowerCase();
+  });
 
-      });
+  const rows = matchedKey
+    ? responseData[matchedKey]
+    : [];
+
+  pageData[pageName] = Array.isArray(rows) ? rows : [];
+});
+
+console.log('ข้อมูลหน้า Home:', pageData.home);
+console.log('ข้อมูลหน้า LTC:', pageData.ltc);
+console.log('จำนวนรายการ LTC:', pageData.ltc.length);
+
 
 
       switchPage('home');
