@@ -1996,45 +1996,31 @@ async function loadAllPages() {
     );
 
 
-    /* =================================================
-       LOAD PAGE DATA
-    ================================================= */
 
-    const allPages =
-      await loadJsonp(
-        'pages'
-      );
+/* =================================================
+   LOAD PAGE DATA
+================================================= */
 
+const allPages = await loadJsonp('pages');
 
-    console.log(
-      'โหลด Pages สำเร็จ:',
-      allPages
-    );
+console.log('โหลด Pages สำเร็จ:', allPages);
 
-
-
+const normalizePageKey = function(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+};
 
 pages.forEach(function(pageName) {
-
-  const normalizePageKey = function(value) {
-    return String(value || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[\s_-]+/g, '');
-  };
-
-  const matchingKey = Object.keys(allPages || {})
-    .find(function(key) {
-      return normalizePageKey(key) ===
-        normalizePageKey(pageName);
-    });
+  const matchingKey = Object.keys(allPages || {}).find(function(key) {
+    return normalizePageKey(key) === normalizePageKey(pageName);
+  });
 
   pageData[pageName] =
-    matchingKey &&
-    Array.isArray(allPages[matchingKey])
+    matchingKey && Array.isArray(allPages[matchingKey])
       ? allPages[matchingKey]
       : [];
-
 });
 
 
