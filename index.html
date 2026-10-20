@@ -2012,14 +2012,30 @@ async function loadAllPages() {
     );
 
 
-    pages.forEach(
-      function(pageName) {
 
-        pageData[pageName] =
-          allPages[pageName] || [];
+pages.forEach(function(pageName) {
 
-      }
-    );
+  const normalizePageKey = function(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, '');
+  };
+
+  const matchingKey = Object.keys(allPages || {})
+    .find(function(key) {
+      return normalizePageKey(key) ===
+        normalizePageKey(pageName);
+    });
+
+  pageData[pageName] =
+    matchingKey &&
+    Array.isArray(allPages[matchingKey])
+      ? allPages[matchingKey]
+      : [];
+
+});
+
 
 
     /* =================================================
