@@ -1867,7 +1867,7 @@
 ===================================================== */
 
 const API_URL =
-  'https://script.google.com/macros/s/AKfycbxk-PnOg4F_oesd7jFKrSsVCEJDbD6gmi8bPZKuRzYCRI9Y5muEVSQWf8NLLYpe2ILNbA/exec';
+  'https://script.google.com/macros/s/AKfycbyE7k3WuuQPBUlhd228G5P0HVk7Fs5dfW9xLSNUplTRKFTjcyFSiiMziLbqcS2nzPzi/exec';
 
 
 /* =====================================================
@@ -1992,25 +1992,29 @@ function loadJsonp(action) {
 function getPagePayload(response) {
   if (!response || typeof response !== 'object') return {};
 
-  // รูปแบบที่ API อาจห่อข้อมูลไว้
-  const candidates = [
-    response.pages,
-    response.data,
-    response.result,
-    response.content,
-    response
+  const knownKeys = [
+    'home', 'Home', 'HOME', 'ltc', 'LTC', 'Ltc',
+    'longTermCare', 'long_term_care', 'long-term-care',
+    'vichit-power', 'vichitPower', 'vichit_power',
+    'about', 'About', 'contact', 'Contact'
   ];
 
-  for (const candidate of candidates) {
-    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-      // ยอมรับ candidate เมื่อมีอย่างน้อยหนึ่ง key ที่รู้จัก
-      if ([
-        'home', 'ltc', 'LTC', 'vichit-power', 'vichitPower',
-        'vichit_power', 'about', 'contact'
-      ].some(key => Object.prototype.hasOwnProperty.call(candidate, key))) {
-        return candidate;
-      }
+  // รองรับ API ที่ห่อข้อมูลไว้หลายชั้น เช่น data.pages หรือ result.data
+  const queue = [response];
+  const seen = new Set();
+  while (queue.length) {
+    const candidate = queue.shift();
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) || seen.has(candidate)) continue;
+    seen.add(candidate);
+
+    if (knownKeys.some(key => Object.prototype.hasOwnProperty.call(candidate, key))) {
+      return candidate;
     }
+
+    ['pages', 'data', 'result', 'content', 'payload', 'records'].forEach(key => {
+      const nested = candidate[key];
+      if (nested && typeof nested === 'object' && !Array.isArray(nested)) queue.push(nested);
+    });
   }
 
   return {};
@@ -2019,10 +2023,14 @@ function getPagePayload(response) {
 function getRows(value) {
   if (Array.isArray(value)) return value;
   if (!value || typeof value !== 'object') return [];
-  if (Array.isArray(value.items)) return value.items;
-  if (Array.isArray(value.rows)) return value.rows;
-  if (Array.isArray(value.data)) return value.data;
-  if (Array.isArray(value.records)) return value.records;
+
+  for (const key of ['items', 'rows', 'data', 'records', 'values', 'results', 'content']) {
+    if (Array.isArray(value[key])) return value[key];
+    if (value[key] && typeof value[key] === 'object') {
+      const nestedRows = getRows(value[key]);
+      if (nestedRows.length) return nestedRows;
+    }
+  }
   return [];
 }
 
@@ -2031,16 +2039,27 @@ function getPageRows(allPages, pageName) {
 
   const aliases = {
     'home': ['home', 'Home', 'HOME'],
-    'ltc': ['ltc', 'LTC', 'Ltc', 'longTermCare', 'long_term_care'],
+    'ltc': ['ltc', 'LTC', 'Ltc', 'longTermCare', 'long_term_care', 'long-term-care', 'long term care'],
     'vichit-power': ['vichit-power', 'vichitPower', 'vichit_power', 'Vichit Power', 'VichitPower'],
     'about': ['about', 'About', 'ABOUT'],
     'contact': ['contact', 'Contact', 'CONTACT']
   };
 
   const source = getPagePayload(allPages);
-  for (const key of (aliases[pageName] || [pageName])) {
+  const keys = aliases[pageName] || [pageName];
+  for (const key of keys) {
     if (Object.prototype.hasOwnProperty.call(source, key)) {
-      return getRows(source[key]);
+      const rows = getRows(source[key]);
+      if (rows.length) return rows;
+    }
+  }
+
+  // รองรับกรณี API ส่ง key เป็นตัวพิมพ์ใหญ่/เล็กต่างกัน
+  const normalizedAliases = keys.map(key => String(key).replace(/[^a-z0-9]/gi, '').toLowerCase());
+  for (const [key, value] of Object.entries(source)) {
+    if (normalizedAliases.includes(String(key).replace(/[^a-z0-9]/gi, '').toLowerCase())) {
+      const rows = getRows(value);
+      if (rows.length) return rows;
     }
   }
   return [];
